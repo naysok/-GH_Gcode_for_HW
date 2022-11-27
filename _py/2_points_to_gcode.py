@@ -1,8 +1,8 @@
 ################################################################################
 ###                                                                          ###
-###   GH_Gcode for TL                                                        ###
+###   GH_Gcode for HW                                                        ###
 ###                                                                          ###
-###       Component : (2) Points to gcode / 210826                           ###
+###       Component : (2) Points to gcode / 221128                           ###
 ###                                                                          ###
 ###                                                                          ###
 ###   Base Script >>> GH_Gcode                                               ###
@@ -11,8 +11,9 @@
 ###       Coding : naoki yoshioka (naysok)                                   ###
 ###       License : MIT License                                              ###
 ###                                                                          ###
-###   Update, 210822 / ysok (Add Leveling)                                   ###
-###   Update, 210826 / ysok (Add E_Retract)                                  ###
+###   Update, 210822 / dd Leveling)                                          ###
+###   Update, 210826 / Add E_Retract)                                        ###
+###   Update, 221128 / Bug_Fix for E_Retract                                 ###
 ###                                                                          ###
 ################################################################################
 
@@ -277,7 +278,7 @@ class MarlinGcode():
 
 
     def define_msg(self):
-        t0 = "; GH_Gcode for TL\n"
+        t0 = "; GH_Gcode for HW\n"
         t1 = "; Polyline to Gcode by Grasshopper\n"
         t2 = "; For Mariln 3D Printer\n"
         t = t0 + t1 + t2
@@ -669,12 +670,16 @@ op_ml = MarlinGcode()
 ##########
 
 
-ghenv.Component.Message = '(2) Points to gcode / 210826'
+BUILD_DAY = "221128"
 
 
-comp_info = "ver_210826"
+ghenv.Component.Message = "2) Points to gcode / {}".format(BUILD_DAY)
+comp_info = "ver_{}".format(BUILD_DAY)
+
+
 Z_OFFSET_VALUE = INFO
 FAN = 0
+
 
 ### Points to Gcode (Not Go Through Machine Origin)
 if RUN_AND_EXPORT:

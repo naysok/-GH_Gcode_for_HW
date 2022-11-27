@@ -548,6 +548,30 @@ class MarlinGcode():
         return gcode_join
 
 
+    def retract_back(self, e_retract):
+
+        ### Special
+        BACK_RATIO = float(1.00)
+
+        ### E_Retract
+        gcode = []
+
+        r0 = "; --- E_Retract_Back ---\n"
+        gcode.append(r0)
+        
+        ### Reset Extruder Value
+        gcode.append(self.reset_extrude_value())
+        
+        v = str("{:.4f}".format(float(e_retract) * BACK_RATIO))
+
+        r1 = "G0 E{}\n".format(v)
+        gcode.append(r1)
+
+        gcode_join = "".join(gcode)
+
+        return gcode_join
+
+
     def point_to_gcode(self, count, pts, e_amp, e_retract, feed, z_zuffer):
         
         layer = []
@@ -609,6 +633,10 @@ class MarlinGcode():
                     ### Travel
                     travel = self.travel(zz, z_zuffer)
                     layer.append(travel)
+
+                    ### E_Retract-Back
+                    retract_back = self.retract_back(e_retract)
+                    layer.append(retract_back)
 
                     ### Layer Info (Comment)
                     end_comment = "; ----- Layer : {} / end -----\n".format(count)

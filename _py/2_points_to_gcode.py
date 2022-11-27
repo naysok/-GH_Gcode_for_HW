@@ -2,7 +2,7 @@
 ###                                                                          ###
 ###   GH_Gcode for TL                                                        ###
 ###                                                                          ###
-###       Component : (2) Points to gcode / 210822                           ###
+###       Component : (2) Points to gcode / 210826                           ###
 ###                                                                          ###
 ###                                                                          ###
 ###   Base Script >>> GH_Gcode                                               ###
@@ -12,6 +12,7 @@
 ###       License : MIT License                                              ###
 ###                                                                          ###
 ###   Update, 210822 / ysok (Add Leveling)                                   ###
+###   Update, 210826 / ysok (Add E_Retract)                                  ###
 ###                                                                          ###
 ################################################################################
 
@@ -525,7 +526,28 @@ class MarlinGcode():
         return gcode_join
 
 
-    def point_to_gcode(self, count, pts, e_amp, feed, z_zuffer):
+    def retract(self, e_retract):
+
+        ### E_Retract
+        gcode = []
+
+        r0 = "; --- E_Retract ---\n"
+        gcode.append(r0)
+        
+        ### Reset Extruder Value
+        gcode.append(self.reset_extrude_value())
+        
+        v = str("{:.4f}".format(float(e_retract)))
+
+        r1 = "G0 E-{}\n".format(v)
+        gcode.append(r1)
+
+        gcode_join = "".join(gcode)
+
+        return gcode_join
+
+
+    def point_to_gcode(self, count, pts, e_amp, e_retract, feed, z_zuffer):
         
         layer = []
 
@@ -579,6 +601,10 @@ class MarlinGcode():
                 ### Index[Last]
                 if i == (len(pts) - 1):
 
+                    ### E_Retract
+                    retract = self.retract(e_retract)
+                    layer.append(retract)
+
                     ### Travel
                     travel = self.travel(zz, z_zuffer)
                     layer.append(travel)
@@ -603,7 +629,7 @@ class MarlinGcode():
     ##############################
 
 
-    def points_list_to_gcode(self, points_list, component, e_amp, feed, temp_nozzle, temp_bed, fan, z_zuffer):
+    def points_list_to_gcode(self, points_list, component, e_amp, e_retract, feed, temp_nozzle, temp_bed, fan, z_zuffer):
         
         ### RUN ALL
         export = []
@@ -622,7 +648,7 @@ class MarlinGcode():
 
             pts = points_list[i]
             layer_count = str(i)
-            export.append(self.point_to_gcode(layer_count, pts, e_amp, feed, z_zuffer))
+            export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, feed, z_zuffer))
 
         ### Print End
         export.append(self.print_end())
@@ -643,14 +669,14 @@ op_ml = MarlinGcode()
 ##########
 
 
-ghenv.Component.Message = '(2) Points to gcode / 210822'
+ghenv.Component.Message = '(2) Points to gcode / 210826'
 
 
-comp_info = "ver_210822"
+comp_info = "ver_210826"
 Z_OFFSET_VALUE = INFO
 FAN = 0
 
 ### Points to Gcode (Not Go Through Machine Origin)
 if RUN_AND_EXPORT:
-    gcode = op_ml.points_list_to_gcode(POINTS, comp_info, E_AMP, FEED, TEMP_NOZZLE, TEMP_BED, FAN, Z_BUFFER)
+    gcode = op_ml.points_list_to_gcode(POINTS, comp_info, E_AMP, E_RETRACT, FEED, TEMP_NOZZLE, TEMP_BED, FAN, Z_BUFFER)
     ut.export_gcode(EXPORT_DIR, gcode)

@@ -2,7 +2,7 @@
 ###                                                                          ###
 ###   GH_Gcode for HW                                                        ###
 ###                                                                          ###
-###       Component : (2) Points to gcode / 221128                           ###
+###       Component : (2) Points to gcode                                    ###
 ###                                                                          ###
 ###                                                                          ###
 ###   Base Script >>> GH_Gcode                                               ###
@@ -14,6 +14,7 @@
 ###   Update, 210822 / dd Leveling)                                          ###
 ###   Update, 210826 / Add E_Retract)                                        ###
 ###   Update, 221128 / Bug_Fix for E_Retract                                 ###
+###   Update, 221203 / Update E_Retract                                      ###
 ###                                                                          ###
 ################################################################################
 
@@ -409,7 +410,7 @@ class MarlinGcode():
     #################################
 
 
-    def print_start(self, fan, temp_bed, temp_nozzle):
+    def print_start_old(self, fan, temp_bed, temp_nozzle):
 
         start = []
 
@@ -440,14 +441,14 @@ class MarlinGcode():
         return start_join
 
 
-    def print_start_tl(self, fan, temp_bed, temp_nozzle):
+    def print_start(self, fan, temp_bed, temp_nozzle):
         
         ### Ref
         ### hineri_kazamatsuri.gcode
 
         start = []
 
-        start.append("; ----- Start Code _ TL -----\n")
+        start.append("; ----- Start Code -----\n")
 
         ### General Setting
         start.append(self.define_general_settings())
@@ -470,7 +471,9 @@ class MarlinGcode():
         ### Reset Extruder Value
         start.append(self.reset_extrude_value())
 
-        start.append("; ----- Start Code _ TL -----\n")
+        start.append("; ----- Start Code -----\n")
+
+        ###
 
         start_join = "".join(start)
 
@@ -512,15 +515,21 @@ class MarlinGcode():
     def travel(self, z_current, z_zuffer):
 
         ### Travel
+
         gcode = []
 
-        cmt = "; --- Travel ---\n"
+        comment = "; --- Travel ---\n"
 
         gz = str("{:.4f}".format(z_current + float(z_zuffer)))
-        trv = "G1 Z{}\n".format(gz)
+        code_travel = "G1 Z{}\n".format(gz)
 
-        gcode.append(cmt)
-        gcode.append(trv)
+        ###
+
+        gcode.append(comment)
+        gcode.append(code_travel)
+        gcode.append(comment)
+
+        ###
 
         gcode_join = "".join(gcode)
 
@@ -530,49 +539,62 @@ class MarlinGcode():
     def retract(self, e_retract):
 
         ### E_Retract
+
         gcode = []
 
-        r0 = "; --- E_Retract ---\n"
-        gcode.append(r0)
+        comment = "; --- E_Retract ---\n"
         
         ### Reset Extruder Value
-        gcode.append(self.reset_extrude_value())
+        code_reset = self.reset_extrude_value()
         
         v = str("{:.4f}".format(float(e_retract)))
+        code_retract = "G0 E-{}\n".format(v)
+        
+        ###
+        
+        gcode.append(comment)
+        gcode.append(code_reset)
+        gcode.append(code_retract)
+        gcode.append(code_reset)
+        gcode.append(comment)
 
-        r1 = "G0 E-{}\n".format(v)
-        gcode.append(r1)
+        ###
 
         gcode_join = "".join(gcode)
 
         return gcode_join
 
 
-    def retract_back(self, e_retract):
+    def retract_back(self, e_retract_back):
 
-        ### Special
-        BACK_RATIO = float(1.00)
+        ### E_Retract_Back
 
-        ### E_Retract
         gcode = []
 
-        r0 = "; --- E_Retract_Back ---\n"
-        gcode.append(r0)
-        
-        ### Reset Extruder Value
-        gcode.append(self.reset_extrude_value())
-        
-        v = str("{:.4f}".format(float(e_retract) * BACK_RATIO))
+        comment = "; --- E_Retract_Back ---\n"
 
-        r1 = "G0 E{}\n".format(v)
-        gcode.append(r1)
+        ### Reset Extruder Value
+        code_reset = self.reset_extrude_value()
+        
+        v = str("{:.4f}".format(float(e_retract_back)))
+        code_retract_back = "G0 E{}\n".format(v)
+ 
+        ###
+
+        gcode.append(comment)
+        gcode.append(code_reset)
+        gcode.append(code_retract_back)
+        gcode.append(code_reset)
+        gcode.append(comment)
+
+        ###
 
         gcode_join = "".join(gcode)
 
         return gcode_join
 
 
-    def point_to_gcode(self, count, pts, e_amp, e_retract, feed, z_zuffer):
+    def point_to_gcode(self, count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer):
         
         layer = []
 
@@ -604,6 +626,12 @@ class MarlinGcode():
                 gcode = "G1 X{} Y{} Z{} E0 F{}\n".format(gx, gy, gz, gf)
                 layer.append(gcode)
 
+                if int(count) != 0:
+                    ### E_Retract_Back
+                    retract_back = self.retract_back(e_retract_back)
+                    layer.append(retract_back)
+
+
             ### Index[1] - Index[Last]
             else:
                 x0, y0, z0 = pts[i - 1]
@@ -634,10 +662,6 @@ class MarlinGcode():
                     travel = self.travel(zz, z_zuffer)
                     layer.append(travel)
 
-                    ### E_Retract-Back
-                    retract_back = self.retract_back(e_retract)
-                    layer.append(retract_back)
-
                     ### Layer Info (Comment)
                     end_comment = "; ----- Layer : {} / end -----\n".format(count)
                     layer.append(end_comment)
@@ -658,7 +682,7 @@ class MarlinGcode():
     ##############################
 
 
-    def points_list_to_gcode(self, points_list, component, e_amp, e_retract, feed, temp_nozzle, temp_bed, fan, z_zuffer):
+    def points_list_to_gcode(self, points_list, component, e_amp, e_retract, e_retract_back, feed, temp_nozzle, temp_bed, fan, z_zuffer):
         
         ### RUN ALL
         export = []
@@ -669,7 +693,7 @@ class MarlinGcode():
 
         ### Print Start
         # export.append(self.print_start(fan, temp_bed, temp_nozzle))
-        export.append(self.print_start_tl(fan, temp_bed, temp_nozzle))
+        export.append(self.print_start(fan, temp_bed, temp_nozzle))
 
         
         ### Printing
@@ -677,7 +701,7 @@ class MarlinGcode():
 
             pts = points_list[i]
             layer_count = str(i)
-            export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, feed, z_zuffer))
+            export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer))
 
         ### Print End
         export.append(self.print_end())
@@ -698,7 +722,7 @@ op_ml = MarlinGcode()
 ##########
 
 
-BUILD_DAY = "221128"
+BUILD_DAY = "221203"
 
 
 ghenv.Component.Message = "2) Points to gcode / {}".format(BUILD_DAY)
@@ -711,5 +735,5 @@ FAN = 0
 
 ### Points to Gcode (Not Go Through Machine Origin)
 if RUN_AND_EXPORT:
-    gcode = op_ml.points_list_to_gcode(POINTS, comp_info, E_AMP, E_RETRACT, FEED, TEMP_NOZZLE, TEMP_BED, FAN, Z_BUFFER)
+    gcode = op_ml.points_list_to_gcode(POINTS, comp_info, E_AMP, E_RETRACT, E_RETRACT_BACK, FEED, TEMP_NOZZLE, TEMP_BED, FAN, Z_BUFFER)
     ut.export_gcode(EXPORT_DIR, gcode)

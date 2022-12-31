@@ -505,42 +505,8 @@ class MarlinGcode():
     #################################
 
 
-    def print_start_old(self, fan, temp_bed, temp_nozzle):
-
-        start = []
-
-        start.append("; ----- Start Code -----\n")
-
-        ### General Setting
-        start.append(self.define_general_settings())
-        
-        ### Start Fan
-        start.append(self.start_fan(fan))
-
-        ### Start Bed
-        start.append(self.start_bed(temp_bed))
-
-        ### Start Extruder
-        start.append(self.start_extruder(temp_nozzle))
-
-        ### Homing
-        start.append(self.homing_all_axes())
-
-        ### Reset Extruder Value
-        start.append(self.reset_extrude_value())
-
-        start.append("; ----- Start Code -----\n")
-
-        start_join = "".join(start)
-
-        return start_join
-
-
     def print_start(self, fan, temp_bed, temp_nozzle):
         
-        ### Ref
-        ### hineri_kazamatsuri.gcode
-
         start = []
 
         start.append("; ----- Start Code -----\n")
@@ -561,7 +527,9 @@ class MarlinGcode():
         start.append(self.homing_all_axes())
 
         ### Leveling
-        start.append(self.leveling())
+            ### Ref
+            ### hineri_kazamatsuri.gcode
+        # start.append(self.leveling())
 
         ### Reset Extruder Value
         start.append(self.reset_extrude_value())

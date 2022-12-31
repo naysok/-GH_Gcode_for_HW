@@ -15,6 +15,7 @@
 ###   Update, 210826 / Add E_Retract)                                        ###
 ###   Update, 221128 / Bug_Fix for E_Retract                                 ###
 ###   Update, 221203 / Update E_Retract                                      ###
+###   Update, 221231 / Add F_Retract/ E_Travel                               ###
 ###                                                                          ###
 ################################################################################
 
@@ -28,46 +29,46 @@ import Rhino.Geometry as rg
 
 class Util():
 
-
-    def get_current_time(self):
+    @staticmethod
+    def get_current_time():
         return str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
-
-    def remap_number(self, src, old_min, old_max, new_min, new_max):
+    @staticmethod
+    def remap_number(src, old_min, old_max, new_min, new_max):
         return ((src - old_min) / (old_max - old_min) * (new_max - new_min) + new_min)
 
-
-    def flatten_runtime_list(self, list):
-        all = []
+    @staticmethod
+    def flatten_runtime_list(list_):
+        all_ = []
         
-        for i in xrange(len(list)):
+        for i in xrange(len(list_)):
             # print(i)
-            sub = list[i]
+            sub = list_[i]
             for j in xrange(len(sub)):
                 # print(j)
-                all.append(sub[j])
+                all_.append(sub[j])
 
-        return all
+        return all_
 
+    @staticmethod
+    def export_gcode(dir_path, now, txt):
 
-    def export_gcode(self, dir_path, txt):
-
-        now = self.get_current_time()
         file_path = dir_path + now + ".gcode"
 
         ### Export
         with open(file_path, 'w') as f:
             f.write(txt)
 
-        print("Export GCode : {}".format(file_path))
+        print("********************\n*** Export GCode ***\n********************\n{}".format(file_path))
 
 
-    def zip_matrix(self, mat):
+    @staticmethod
+    def zip_matrix(mat):
         ### https://note.nkmk.me/python-list-transpose/
         return [list(x) for x in zip(*mat)]
 
-
-    def padding_previous_value(self, list_):
+    @staticmethod
+    def padding_previous_value(list_):
         
         list_pad = []
 
@@ -92,8 +93,8 @@ class Util():
         
         return list_pad
 
-
-    def remove_previous_elements(self, a_list):
+    @staticmethod
+    def remove_previous_elements(a_list):
 
         ### Remove Same Element as the Previous One
         new_list = []
@@ -112,8 +113,8 @@ class Util():
                 
         return new_list
 
-
-    def bitwise_or_arrays(self, arrays):
+    @staticmethod
+    def bitwise_or_arrays(arrays):
 
         ### Merge Bool from Brep.isPointInside
 
@@ -157,8 +158,6 @@ class Util():
             # print(len(bool_inside[0]))
 
             return bool_inside
-
-ut = Util()
 
 
 class Transform():
@@ -275,39 +274,135 @@ class Curve():
 op_c = Curve()
 
 
-class MarlinGcode():
+class ParametersExtrude():
+
+    def __init__(self, extrude_amp=None, extrude_retract=None, extrude_retract_back=None):
+        
+        self.extrude_amp = extrude_amp
+        self.extrude_retract = extrude_retract
+        self.extrude_retract_back = extrude_retract_back
+
+    def define_print_parameter(self):
+        
+        ### For Header
+        gcode_extrude_amp =          "; EXTRUDE_AMP-ratio   : {}\n".format(str(self.extrude_amp))
+        gcode_extrude_retract =      "; EXTRUDE_RETRACT       : {}\n".format(str(self.extrude_retract))
+        gcode_extrude_retract_back = "; EXTRUDE_RETRACT_BACK  : {}\n".format(str(self.extrude_retract_back))
+
+        gcode_extrude_parameter = gcode_extrude_amp + gcode_extrude_retract + gcode_extrude_retract_back
+
+        return gcode_extrude_parameter
 
 
-    def define_msg(self):
+class ParametersFeed():
+
+    def __init__(self, feed_print=None, feed_retract=None, feed_travel=None):
+        
+        self.feed_print = feed_print
+        self.feed_retract = feed_retract
+        self.feed_travel = feed_travel
+
+    def define_print_parameter(self):
+            
+        ### For Header
+        gcode_feed_print =   "; FEED_PRINT   : {}\n".format(str(self.feed_print))
+        gcode_feed_retract = "; FEED_RETRACT : {}\n".format(str(self.feed_retract))
+        gcode_feed_travel =  "; FEED_TRAVEL  : {}\n".format(str(self.feed_travel))
+
+        gcode_feed_parameter = gcode_feed_print + gcode_feed_retract + gcode_feed_travel
+
+        return gcode_feed_parameter
+
+
+class ParametersTemperature():
+
+    def __init__(self, temp_nozzle=None, temp_bed=None):
+        
+        self.temp_nozzle = temp_nozzle
+        self.temp_bed = temp_bed
+
+    def define_print_parameter(self):
+            
+        ### For Header
+        gcode_temp_nozzle = "; TEMP_NOZZLE : {}\n".format(str(self.temp_nozzle))
+        gcode_temp_bed =    "; TEMP_BED    : {}\n".format(str(self.temp_bed))
+
+        gcode_temp_parameter = gcode_temp_nozzle + gcode_temp_bed
+
+        return gcode_temp_parameter
+
+
+class MarlinGcodeHeader():
+    
+    def __init__(self, now, component_info, param_e, param_feed, param_temp, fan, z_buffer):
+        
+        self.now = now
+        self.component_info = component_info
+        self.param_e = param_e
+        self.param_feed = param_feed
+        self.param_temp = param_temp
+        self.fan = fan
+        self.z_buffer = z_buffer
+
+    def define_header_top(self):
+
         t0 = "; GH_Gcode for HW\n"
         t1 = "; Polyline to Gcode by Grasshopper\n"
         t2 = "; For Mariln 3D Printer\n"
-        t = t0 + t1 + t2
-        return t
 
-    def define_print_parameter(self, component, e_amp, feed, temp_nozzle, temp_bed, fan, z_zuffer):
-        
-        line = "; ----- Print Parameter -----\n"
+        return t0 + t1 + t2
+
+    def define_print_parameter(self):
+
+        prm_e = self.param_e
+        prm_f = self.param_feed
+        prm_t = self.param_temp
+
+        ____line____ = "; ----- Print Parameter -----\n"
 
         ### Time Stamp
-        now = ut.get_current_time()
-        time = "; Export Time : {}\n".format(now)
+        time = "; Export Time : {}\n".format(self.now)
         
         ### Print Parameter
-        print_comp = "; Component Info : {}\n".format(component)
-        print_e_amp = "; E_AMP : {}\n".format(str(e_amp))
-        print_feed = "; FEED : {}\n".format(str(feed))
-        print_temp_nozzle = "; TEMP_NOZZLE : {}\n".format(str(temp_nozzle))
-        print_temp_bed = "; TEMP_BED : {}\n".format(str(temp_bed))
-        print_fan = "; FAN : {}\n".format(str(fan))
-        print_z_buffer = "; Z_BUFFER : {}\n".format(str(z_zuffer))
+        print_comp = "; Component Info : {}\n".format(self.component_info)
+
+        ### Extrude
+        print_extrude = prm_e.define_print_parameter()
+
+        ### Feed
+        print_feed = prm_f.define_print_parameter()
+
+        ### Temp
+        print_temp = prm_t.define_print_parameter()
+
+        ### Other
+        print_fan = "; FAN : {}\n".format(str(self.fan))
+        print_z_buffer = "; Z_BUFFER : {}\n".format(str(self.z_buffer))
         
-        print_prm = [line, time, print_comp, print_e_amp, print_feed, 
-            print_temp_nozzle, print_temp_bed, print_fan, print_z_buffer, line]
+        print_prm = [
+            ____line____,
+            time,
+            print_comp,
+            print_extrude,
+            print_feed,
+            print_temp,
+            print_fan,
+            print_z_buffer,
+            ____line____]
 
         print_prm_join = "".join(print_prm)
 
         return print_prm_join
+
+    def define_header(self):
+
+        top = self.define_header_top()
+        prms = self.define_print_parameter()
+
+        return top + prms
+
+
+class MarlinGcode():
 
 
     def define_general_settings(self):
@@ -682,15 +777,20 @@ class MarlinGcode():
     ##############################
 
 
-    def points_list_to_gcode(self, points_list, component, e_amp, e_retract, e_retract_back, feed, temp_nozzle, temp_bed, fan, z_zuffer):
+    def points_list_to_gcode(self, points_list, now, component_info, params_e, params_feed, params_temp, fan, z_zuffer):
         
         ### RUN ALL
         export = []
 
         ### Msg, Parameters
-        export.append(self.define_msg())
-        export.append(self.define_print_parameter(component, e_amp, feed, temp_nozzle, temp_bed, fan, z_zuffer))
+        #export.append(self.define_msg())
+        #export.append(self.define_print_parameter(component, params_e, params_feed, params_temp, fan, z_zuffer))
 
+        header = MarlinGcodeHeader(now, component_info, params_e, params_feed, params_temp, fan, z_zuffer)
+        export.append(header.define_header())
+
+
+        """
         ### Print Start
         # export.append(self.print_start(fan, temp_bed, temp_nozzle))
         export.append(self.print_start(fan, temp_bed, temp_nozzle))
@@ -705,6 +805,7 @@ class MarlinGcode():
 
         ### Print End
         export.append(self.print_end())
+        """
 
 
         ### JOIN
@@ -722,18 +823,27 @@ op_ml = MarlinGcode()
 ##########
 
 
-BUILD_DAY = "221203"
+BUILD_DAY = "221231"
 
 
 ghenv.Component.Message = "2) Points to gcode / {}".format(BUILD_DAY)
-comp_info = "ver_{}".format(BUILD_DAY)
+COMPONENT_INFO = "ver_{}".format(BUILD_DAY)
 
+
+NOW = Util.get_current_time()
 
 Z_OFFSET_VALUE = INFO
 FAN = 0
 
+PARAMS_EXTRUDE = ParametersExtrude(E_AMP, E_RETRACT, E_RETRACT_BACK)
+PARAMS_FEED = ParametersFeed(FEED_PRINT, FEED_RETRACT, FEED_TRAVEL)
+PARAMS_TEMP = ParametersTemperature(TEMP_NOZZLE, TEMP_BED)
+
 
 ### Points to Gcode (Not Go Through Machine Origin)
 if RUN_AND_EXPORT:
-    gcode = op_ml.points_list_to_gcode(POINTS, comp_info, E_AMP, E_RETRACT, E_RETRACT_BACK, FEED, TEMP_NOZZLE, TEMP_BED, FAN, Z_BUFFER)
-    ut.export_gcode(EXPORT_DIR, gcode)
+    gcode = op_ml.points_list_to_gcode(POINTS, NOW, COMPONENT_INFO, PARAMS_EXTRUDE, PARAMS_FEED, PARAMS_TEMP, FAN, Z_BUFFER)
+    Util.export_gcode(EXPORT_DIR, NOW, gcode)
+
+    ### For DEBUG
+    print(NOW)

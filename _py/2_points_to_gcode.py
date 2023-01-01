@@ -15,7 +15,7 @@
 ###   Update, 210826 / Add E_Retract)                                        ###
 ###   Update, 221128 / Bug_Fix for E_Retract                                 ###
 ###   Update, 221203 / Update E_Retract                                      ###
-###   Update, 221231 / Add F_Retract/ E_Travel                               ###
+###   Update, 221231 / Simplify3d's Travel                                   ###
 ###                                                                          ###
 ################################################################################
 
@@ -563,34 +563,55 @@ class MarlinGcodeMachineSetup():
 
 class MarlinGcodePrinting():
 
+    def __init__(self, point_lists, params_e, params_f, z_buffer):
+        
+        self.point_lists = point_lists
+        self.params_e = params_e
+        self.params_f = params_f
+        self.z_buffer = z_buffer
 
-    def travel(self, z_current, z_zuffer):
 
-        ### Travel
+    def reset_extrude_value(self):
+
+        ### G92 - Set Position
+        reset_e = "G92 E0 ; Reset Extruder Value\n"
+
+        return reset_e
+
+
+    def z_escape(self, z_current, z_zuffer):
+
+        ### Z_Escape
 
         gcode = []
 
-        comment = "; --- Travel ---\n"
+        comment = "; --- Z_Excape ---\n"
 
         gz = str("{:.4f}".format(z_current + float(z_zuffer)))
-        code_travel = "G1 Z{}\n".format(gz)
+        code_z_escape = "G1 Z{}\n".format(gz)
 
-        ###
+        ################################
 
         gcode.append(comment)
-        gcode.append(code_travel)
+        gcode.append(code_z_escape)
         gcode.append(comment)
 
-        ###
+        ################################
 
         gcode_join = "".join(gcode)
 
         return gcode_join
 
 
-    def retract(self, e_retract):
+    def retract(self):
 
         ### E_Retract
+
+        prm_e = self.params_e
+        e_retract = prm_e.extrude_retract
+
+        prm_f = self.params_f
+        feed_retract = prm_f.feed_retract
 
         gcode = []
 
@@ -599,10 +620,12 @@ class MarlinGcodePrinting():
         ### Reset Extruder Value
         code_reset = self.reset_extrude_value()
         
-        v = str("{:.4f}".format(float(e_retract)))
-        code_retract = "G0 E-{}\n".format(v)
+        v_e = str("{:.4f}".format(float(e_retract)))
+        v_f = str(int(feed_retract))
+
+        code_retract = "G0 E-{} F{}\n".format(v_e, v_f)
         
-        ###
+        ################################
         
         gcode.append(comment)
         gcode.append(code_reset)
@@ -610,16 +633,22 @@ class MarlinGcodePrinting():
         gcode.append(code_reset)
         gcode.append(comment)
 
-        ###
+        ################################
 
         gcode_join = "".join(gcode)
 
         return gcode_join
 
 
-    def retract_back(self, e_retract_back):
+    def retract_back(self):
 
         ### E_Retract_Back
+
+        prm_e = self.params_e
+        e_retract_back = prm_e.extrude_retract_back
+
+        prm_f = self.params_f
+        feed_retract = prm_f.feed_retract
 
         gcode = []
 
@@ -628,10 +657,12 @@ class MarlinGcodePrinting():
         ### Reset Extruder Value
         code_reset = self.reset_extrude_value()
         
-        v = str("{:.4f}".format(float(e_retract_back)))
-        code_retract_back = "G0 E{}\n".format(v)
+        v_e = str("{:.4f}".format(float(e_retract_back)))
+        v_f = str(int(feed_retract))
+
+        code_retract_back = "G0 E{} F{}\n".format(v_e, v_f)
  
-        ###
+        ################################
 
         gcode.append(comment)
         gcode.append(code_reset)
@@ -639,21 +670,39 @@ class MarlinGcodePrinting():
         gcode.append(code_reset)
         gcode.append(comment)
 
-        ###
+        ################################
 
         gcode_join = "".join(gcode)
 
         return gcode_join
 
 
-    def point_to_gcode(self, count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer):
+    def points_to_gcode(self, count, pts):
         
-        layer = []
+        prm_e = self.params_e
+        prm_f = self.params_f
+        z_buffer = self.z_buffer
+
+        e_amp = prm_e.extrude_amp
+
+        f_print = prm_f.feed_print
+        f_travel = prm_f.feed_travel
 
         ### CR-10 / TPU
         PRINTER_PARAMETER = 0.165
 
+
+        layer = []
+
+        travel_start_comment = "; -- Travel_Start --\n"
+        travel_end_comment =   "; -- Travel_End --\n"
+
+        print_start_comment = "; -- Print_Start --\n"
+        print_end_comment =   "; -- Print_End --\n"
+
+
         for i in xrange(len(pts)):
+
             p = pts[i]
             xx, yy, zz = p
 
@@ -667,21 +716,26 @@ class MarlinGcodePrinting():
                 start_comment = "; ----- Layer : {} / start -----\n".format(count)
                 layer.append(start_comment)
 
+                layer.append(travel_start_comment)
+
                 ### Reset Extruder Value
                 layer.append(self.reset_extrude_value())
 
                 gx = str("{:.4f}".format(xx))
                 gy = str("{:.4f}".format(yy))
                 gz = str("{:.4f}".format(zz))
-                gf = str("{}".format(feed))
+                gf = str("{}".format(f_travel))
 
                 gcode = "G1 X{} Y{} Z{} E0 F{}\n".format(gx, gy, gz, gf)
                 layer.append(gcode)
 
                 if int(count) != 0:
+
                     ### E_Retract_Back
-                    retract_back = self.retract_back(e_retract_back)
-                    layer.append(retract_back)
+                    layer.append(self.retract_back())
+
+                layer.append(travel_end_comment)
+
 
 
             ### Index[1] - Index[Last]
@@ -689,7 +743,7 @@ class MarlinGcodePrinting():
                 x0, y0, z0 = pts[i - 1]
                 x1, y1, z1 = pts[i]
                 
-                distance = self.calc_distance_2pt(x0, y0, z0, x1, y1, z1)
+                distance = CalcVector.calc_distance_2pt(x0, y0, z0, x1, y1, z1)
 
                 ### PRINTER_PARAMETER // 1.85 to 0.4
                 ### e_amp // override
@@ -699,23 +753,23 @@ class MarlinGcodePrinting():
                 gy = str("{:.4f}".format(yy))
                 gz = str("{:.4f}".format(zz))
                 ge = str("{:.4f}".format(ee))
+                gf = str("{}".format(f_print))
                 
-                gcode = "G1 X{} Y{} Z{} E{}\n".format(gx, gy, gz, ge)
+                gcode = "G1 X{} Y{} Z{} E{} F{}\n".format(gx, gy, gz, ge, gf)
                 layer.append(gcode)
             
                 ### Index[Last]
                 if i == (len(pts) - 1):
 
                     ### E_Retract
-                    retract = self.retract(e_retract)
-                    layer.append(retract)
+                    layer.append(self.retract())
 
-                    ### Travel
-                    travel = self.travel(zz, z_zuffer)
-                    layer.append(travel)
+                    ### Z_Escape
+                    # z_escape = self.z_escape(zz, z_buffer)
+                    # layer.append(z_escape)
 
                     ### Layer Info (Comment)
-                    end_comment = "; ----- Layer : {} / end -----\n".format(count)
+                    end_comment = "; ----- Layer : {} / end   -----\n".format(count)
                     layer.append(end_comment)
 
         ### Join
@@ -724,56 +778,76 @@ class MarlinGcodePrinting():
         return layer_join
 
 
-    ##################################################################
+    def point_lists_to_gcode(self):
+
+        gcode = []
+
+        point_lists = self.point_lists
+
+        for i in xrange(len(point_lists)):
+
+            pts = point_lists[i]
+            layer_count = str(i)
+
+            gcode.append(self.points_to_gcode(layer_count, pts))
+
+        ### Join
+        gcode_join = "".join(gcode)
+
+        return gcode_join
 
 
-    ##############################
-    ###                        ###
-    ###     Generate Gcode     ###
-    ###                        ###
-    ##############################
 
 
-    def points_list_to_gcode(self, points_list, now, component_info, params_e, params_feed, params_temp, fan, z_zuffer):
+class MarlinGcodeGenerate():
 
-        export = []
+
+    def gcode_generate(self, point_lists, now, component_info, params_e, params_feed, params_temp, fan, z_buffer):
+
+        """
+
+        point_lists = 
+            [layer1-point_list, layer2-point_list, layer3-point_list, ...]
+        
+        layer1-point_list = 
+            [Rhino.Point3d(x00, y00, z00), Rhino.Point3d(x01, y01, z01), Rhino.Point3d(x02, y02, z02), ...]
+
+        """
+
+        gcode = []
+
+        header = MarlinGcodeHeader(now, component_info, params_e, params_feed, params_temp, fan, z_buffer)
+        machine_setup = MarlinGcodeMachineSetup(params_temp, fan)
+        printing = MarlinGcodePrinting(point_lists, params_e, params_feed, z_buffer)
+
 
         ################################
-
-        header = MarlinGcodeHeader(now, component_info, params_e, params_feed, params_temp, fan, z_zuffer)
-        machine_setup = MarlinGcodeMachineSetup(params_temp, fan)
-
 
         ### (1) Print Header, Parameters
-        export.append(header.define_header())
+        gcode.append(header.define_header())
+
 
         ### (2) Machine Start
-        export.append(machine_setup.machine_start())
+        gcode.append(machine_setup.machine_start())
 
 
-        """
         ### (3) Printing
-        for i in xrange(len(points_list)):
+        gcode.append(printing.point_lists_to_gcode())
 
-            pts = points_list[i]
-            layer_count = str(i)
-            export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer))
-
-        """
 
         ### (4) Machine End
-        export.append(machine_setup.machine_end())
+        gcode.append(machine_setup.machine_end())
 
         ################################
 
 
-        ### JOIN
-        export_join = "".join(export)
+        ### Join
+        gcode_join = "".join(gcode)
 
-        return export_join
+        return gcode_join
 
 
-op_ml = MarlinGcodePrinting()
+gcode_generator = MarlinGcodeGenerate()
 
 
 
@@ -801,8 +875,8 @@ PARAMS_TEMP = ParametersTemperature(TEMP_NOZZLE, TEMP_BED)
 
 ### Points to Gcode (Not Go Through Machine Origin)
 if RUN_AND_EXPORT:
-    gcode = op_ml.points_list_to_gcode(POINTS, NOW, COMPONENT_INFO, PARAMS_EXTRUDE, PARAMS_FEED, PARAMS_TEMP, FAN, Z_BUFFER)
+    gcode = gcode_generator.gcode_generate(POINTS, NOW, COMPONENT_INFO, PARAMS_EXTRUDE, PARAMS_FEED, PARAMS_TEMP, FAN, Z_BUFFER)
     Util.export_gcode(EXPORT_DIR, NOW, gcode)
 
     ### For DEBUG
-    print(NOW)
+    # print(NOW)

@@ -211,43 +211,10 @@ class Curve():
 
     def polyline_to_points(self, polyline):
 
-        ########## NEW CODE ##########
-
         ### Polyline to Points by RhinoCommon
         pl = rs.coercegeometry(polyline)
         new_pl = rg.PolylineCurve.ToPolyline(pl)
         points = new_pl.ToArray()
-
-        ########## NEW CODE ##########
-
-        """
-        ########## OLD CODE 1 ##########
-        ### Start-Point + CurveDiscontinuity + End-Point
-        points = []
-        ### Start Point
-        start_pt = rs.CurveStartPoint(polyline)
-        points.append(start_pt)
-        ### Segment Points
-        ### Style : 3 = C2 - Continuous first and second derivative
-        segments = rs.CurveDiscontinuity(polyline, 3)
-        for j in range(len(segments)):
-            points.append(segments[j])
-        ### End Point
-        end_pt =  rs.CurveEndPoint(polyline)
-        points.append(end_pt)
-        ########## OLD CODE 1 ##########
-        """
-
-        """
-        ########## OLD CODE 2 ##########
-        
-        ### Polyline to Points by rhinoscriptsuntax
-        ### https://developer.rhino3d.com/api/RhinoScriptSyntax/#collapse-PolylineVertices
-        
-        points = rs.PolylineVertices(polyline)
-        
-        ########## OLD CODE 2 ##########
-        """
         
         return points
 
@@ -272,6 +239,9 @@ class Curve():
         return geos_off
 
 op_c = Curve()
+
+
+################################################################
 
 
 class ParametersExtrude():
@@ -330,6 +300,9 @@ class ParametersTemperature():
         gcode_temp_parameter = gcode_temp_nozzle + gcode_temp_bed
 
         return gcode_temp_parameter
+
+
+################################################################
 
 
 class MarlinGcodeHeader():
@@ -400,6 +373,10 @@ class MarlinGcodeHeader():
         prms = self.define_print_parameter()
 
         return top + prms
+
+
+
+################################################################
 
 
 class MarlinGcode():
@@ -750,10 +727,7 @@ class MarlinGcode():
         ### RUN ALL
         export = []
 
-        ### Msg, Parameters
-        #export.append(self.define_msg())
-        #export.append(self.define_print_parameter(component, params_e, params_feed, params_temp, fan, z_zuffer))
-
+        ### Print Header, Parameters
         header = MarlinGcodeHeader(now, component_info, params_e, params_feed, params_temp, fan, z_zuffer)
         export.append(header.define_header())
 

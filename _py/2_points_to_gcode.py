@@ -61,7 +61,6 @@ class Util():
 
         print("********************\n*** Export GCode ***\n********************\n{}".format(file_path))
 
-
     @staticmethod
     def zip_matrix(mat):
         ### https://note.nkmk.me/python-list-transpose/
@@ -244,6 +243,22 @@ op_c = Curve()
 ################################################################
 
 
+class CalcVector():
+
+    @staticmethod
+    def calc_distance_2pt(x0, y0, z0, x1, y1, z1):
+
+        d = math.sqrt(
+            ((x0 - x1) * (x0 - x1)) + 
+            ((y0 - y1) * (y0 - y1)) + 
+            ((z0 - z1) * (z0 - z1)))
+
+        return d
+
+
+################################################################
+
+
 class ParametersExtrude():
 
     def __init__(self, extrude_amp=None, extrude_retract=None, extrude_retract_back=None):
@@ -255,9 +270,9 @@ class ParametersExtrude():
     def define_print_parameter(self):
         
         ### For Header
-        gcode_extrude_amp =          "; EXTRUDE_AMP-ratio   : {}\n".format(str(self.extrude_amp))
-        gcode_extrude_retract =      "; EXTRUDE_RETRACT       : {}\n".format(str(self.extrude_retract))
-        gcode_extrude_retract_back = "; EXTRUDE_RETRACT_BACK  : {}\n".format(str(self.extrude_retract_back))
+        gcode_extrude_amp =          "; EXTRUDE_AMP, ratio       : {}\n".format(str(self.extrude_amp))
+        gcode_extrude_retract =      "; EXTRUDE_RETRACT, mm      : {}\n".format(str(self.extrude_retract))
+        gcode_extrude_retract_back = "; EXTRUDE_RETRACT_BACK, mm : {}\n".format(str(self.extrude_retract_back))
 
         gcode_extrude_parameter = gcode_extrude_amp + gcode_extrude_retract + gcode_extrude_retract_back
 
@@ -375,6 +390,10 @@ class MarlinGcodeHeader():
         return top + prms
 
 
+################################################################
+
+
+
 
 ################################################################
 
@@ -461,15 +480,6 @@ class MarlinGcode():
         return reset_e
 
 
-    def calc_distance_2pt(self, x0, y0, z0, x1, y1, z1):
-
-        ### Calc Distance
-        xx = x0 - x1
-        yy = y0 - y1
-        zz = z0 - z1
-        dist = math.sqrt((xx * xx) + (yy * yy) + (zz * zz))
-
-        return dist
 
 
     ##################################################################
@@ -733,7 +743,7 @@ class MarlinGcode():
 
 
         """
-        ### Print Start
+        ### Machine Start
         # export.append(self.print_start(fan, temp_bed, temp_nozzle))
         export.append(self.print_start(fan, temp_bed, temp_nozzle))
 
@@ -745,7 +755,7 @@ class MarlinGcode():
             layer_count = str(i)
             export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer))
 
-        ### Print End
+        ### Machine End
         export.append(self.print_end())
         """
 

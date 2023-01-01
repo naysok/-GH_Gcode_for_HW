@@ -487,7 +487,7 @@ class MarlinGcodeMachineSetup():
     def reset_extrude_value(self):
 
         ### G92 - Set Position
-        reset_e = "G92 E0 ; Reset Extruder Value\n"
+        reset_e = "G92 E0 ; Reset Extruder Value, for Start Code\n"
 
         return reset_e
 

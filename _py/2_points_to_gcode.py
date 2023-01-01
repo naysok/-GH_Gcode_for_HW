@@ -393,15 +393,18 @@ class MarlinGcodeHeader():
 ################################################################
 
 
+class MarlinGcodeMachineSetup():
 
 
-################################################################
+    def __init__(self, param_temp, fan):
 
-
-class MarlinGcode():
+        self.param_temp = param_temp
+        self.fan = fan
 
 
     def define_general_settings(self):
+
+        ################################
 
         ### G90 - Absolute Positioning
         set_g90 = "G90 ; Absolute Positioning\n"
@@ -412,42 +415,47 @@ class MarlinGcode():
         ### Set Tool
         set_t0 = "T0\n"
 
-        settings = [set_g90, set_m82, set_t0]
-        
-        settings_join = "".join(settings)
+        ################################
 
-        return settings_join
+        settings = set_g90 + set_m82 + set_t0
+
+        return settings
 
 
-    def start_fan(self, fan):
+    def start_fan(self):
         
         ### M106 - Set Fan Speed
-        set_fan = "M106 S{} ; Set - Fan\n".format(str(fan))
+        set_fan = "M106 S{} ; Set - Fan\n".format(str(self.fan))
+
         return set_fan
 
 
-    def start_bed(self, temp_bed):
+    def start_bed(self):
         
+        prm_t = self.param_temp
+
         ### M140 - Set Bed Temperature
         ### M190 - Wait for Bed Temperature
 
-        set_temp_bed = "M140 S{} ; Set - Temp Bed\n".format(str(temp_bed))
+        set_temp_bed = "M140 S{} ; Set - Temp Bed\n".format(str(prm_t.temp_bed))
 
-        if float(temp_bed) < 40:
+        if float(prm_t.temp_bed) < 40:
             return set_temp_bed
 
         else:
-            wait_temp_bed = "M190 S{} ; Wait - Temp Bed\n".format(str(temp_bed))
+            wait_temp_bed = "M190 S{} ; Wait - Temp Bed\n".format(str(prm_t.temp_bed))
             return set_temp_bed + wait_temp_bed
 
 
-    def start_extruder(self, temp_nozzle):
+    def start_extruder(self):
+
+        prm_t = self.param_temp
 
         ### M104 - Set Hotend Temperature
         ### M109 - Wait for Hotend Temperature
         
-        set_temp_extruder = "M104 S{} T0 ; Set - Temp Extruder\n".format(str(temp_nozzle))
-        wait_temp_extruder = "M109 S{} T0 ; Wait - Temp Extruder\n".format(str(temp_nozzle))
+        set_temp_extruder = "M104 S{} T0 ; Set - Temp Extruder\n".format(str(prm_t.temp_nozzle))
+        wait_temp_extruder = "M109 S{} T0 ; Wait - Temp Extruder\n".format(str(prm_t.temp_nozzle))
 
         return set_temp_extruder + wait_temp_extruder
 
@@ -456,6 +464,7 @@ class MarlinGcode():
         
         ### G28 - Auto Home
         homing = "G28 ; Homing\n"
+
         return homing
 
 
@@ -463,38 +472,31 @@ class MarlinGcode():
         
         ### G28 - Auto Home
         homing = "G28 X0 ; Homing X\n"
+
         return homing
 
     
-    def leveling(self):
+    def auto_leveling(self):
 
         ### G29 - Auto Leveling
-        leveling = "G29 ; Auto Leveling\n"
-        return leveling
+        leveling_auto = "G29 ; Auto Leveling\n"
+
+        return leveling_auto
 
 
     def reset_extrude_value(self):
 
         ### G92 - Set Position
         reset_e = "G92 E0 ; Reset Extruder Value\n"
+
         return reset_e
 
 
+    def machine_start(self):
 
-
-    ##################################################################
-
-
-    #################################
-    ###                           ###
-    ###     Print Start / End     ###
-    ###                           ###
-    #################################
-
-
-    def print_start(self, fan, temp_bed, temp_nozzle):
-        
         start = []
+
+        ################################
 
         start.append("; ----- Start Code -----\n")
 
@@ -502,13 +504,13 @@ class MarlinGcode():
         start.append(self.define_general_settings())
         
         ### Start Fan
-        start.append(self.start_fan(fan))
+        start.append(self.start_fan())
 
         ### Start Bed
-        start.append(self.start_bed(temp_bed))
+        start.append(self.start_bed())
 
         ### Start Extruder
-        start.append(self.start_extruder(temp_nozzle))
+        start.append(self.start_extruder())
 
         ### Homing
         start.append(self.homing_all_axes())
@@ -516,23 +518,25 @@ class MarlinGcode():
         ### Leveling
             ### Ref
             ### hineri_kazamatsuri.gcode
-        # start.append(self.leveling())
+        # start.append(self.auto_leveling())
 
         ### Reset Extruder Value
         start.append(self.reset_extrude_value())
 
         start.append("; ----- Start Code -----\n")
 
-        ###
+        ################################
 
         start_join = "".join(start)
 
         return start_join
 
 
-    def print_end(self):
+    def machine_end(self):
 
         end = []
+
+        ################################
 
         end.append("; ----- End Code -----\n")
 
@@ -547,19 +551,17 @@ class MarlinGcode():
 
         end.append("; ----- End Code -----\n")
 
+        ################################
+
         end_join = "".join(end)
 
         return end_join
-    
-
-    ##################################################################
 
 
-    ########################
-    ###                  ###
-    ###     Printing     ###
-    ###                  ###
-    ########################
+################################################################
+
+
+class MarlinGcodePrinting():
 
 
     def travel(self, z_current, z_zuffer):
@@ -733,31 +735,36 @@ class MarlinGcode():
 
 
     def points_list_to_gcode(self, points_list, now, component_info, params_e, params_feed, params_temp, fan, z_zuffer):
-        
-        ### RUN ALL
+
         export = []
 
-        ### Print Header, Parameters
+        ################################
+
         header = MarlinGcodeHeader(now, component_info, params_e, params_feed, params_temp, fan, z_zuffer)
+        machine_setup = MarlinGcodeMachineSetup(params_temp, fan)
+
+
+        ### (1) Print Header, Parameters
         export.append(header.define_header())
+
+        ### (2) Machine Start
+        export.append(machine_setup.machine_start())
 
 
         """
-        ### Machine Start
-        # export.append(self.print_start(fan, temp_bed, temp_nozzle))
-        export.append(self.print_start(fan, temp_bed, temp_nozzle))
-
-        
-        ### Printing
+        ### (3) Printing
         for i in xrange(len(points_list)):
 
             pts = points_list[i]
             layer_count = str(i)
             export.append(self.point_to_gcode(layer_count, pts, e_amp, e_retract, e_retract_back, feed, z_zuffer))
 
-        ### Machine End
-        export.append(self.print_end())
         """
+
+        ### (4) Machine End
+        export.append(machine_setup.machine_end())
+
+        ################################
 
 
         ### JOIN
@@ -766,7 +773,7 @@ class MarlinGcode():
         return export_join
 
 
-op_ml = MarlinGcode()
+op_ml = MarlinGcodePrinting()
 
 
 
